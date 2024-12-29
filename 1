@@ -1,0 +1,90 @@
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, MessageHandler, Filters, CallbackContext
+
+# Словарь для хранения фотографий
+wardrobe = {
+    "Ремни": [],
+    "Украшения": [],
+    "Обувь": [],
+    "Сумки": [],
+    "Брюки": [],
+    "Юбки": [],
+    "Рубашки": [],
+    "Кофты": [],
+    "Футболки": [],
+    "Топы": [],
+    "Пиджаки": [],
+    "Верхняя одежда": [],
+    "Домашняя одежда": [],
+    "Одежда для спорта": [],
+    "Нижнее белье": []
+}
+
+# Функция старта
+def start(update: Update, context: CallbackContext):
+    keyboard = [
+        [InlineKeyboardButton("Добавить вещь", callback_data="add_item")],
+        [InlineKeyboardButton("Посмотреть образы", callback_data="view_outfits")],
+        [InlineKeyboardButton("Список покупок", callback_data="shopping_list")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    update.message.reply_text("Выберите действие:", reply_markup=reply_markup)
+
+# Обработчик кнопок
+def button_handler(update: Update, context: CallbackContext):
+    query = update.callback_query
+    query.answer()
+
+    if query.data == "add_item":
+        keyboard = [[InlineKeyboardButton(category, callback_data=category)] for category in wardrobe.keys()]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        query.edit_message_text("Выберите категорию для добавления вещи:", reply_markup=reply_markup)
+
+    elif query.data == "view_outfits":
+        query.edit_message_text("Функция просмотра образов пока в разработке.")
+
+    elif query.data == "shopping_list":
+        query.edit_message_text("Функция списка покупок пока в разработке.")
+
+    elif query.data in wardrobe.keys():
+        context.user_data['selected_category'] = query.data
+        query.edit_message_text(text=f"Вы выбрали категорию: {query.data}. Отправьте фото, чтобы добавить в эту категорию.")
+
+# Обработчик добавления фото
+def add_photo(update: Update, context: CallbackContext):
+    category = context.user_data.get('selected_category')
+    if category:
+        if update.message.photo:
+            photo_file_id = update.message.photo[-1].file_id
+            wardrobe[category].append(photo_file_id)
+            update.message.reply_text(f"Фото добавлено в категорию {category}.")
+        else:
+            update.message.reply_text("Пожалуйста, отправьте фото.")
+    else:
+        update.message.reply_text("Сначала выберите категорию с помощью кнопки 'Добавить вещь'.")
+
+# Обработчик просмотра гардероба
+def view_wardrobe(update: Update, context: CallbackContext):
+    messages = []
+    for category, photos in wardrobe.items():
+        if photos:
+            messages.append(f"Категория: {category} (Количество фото: {len(photos)})")
+        else:
+            messages.append(f"Категория: {category} (пусто)")
+    update.message.reply_text("\n".join(messages))
+
+# Основной код
+def main():
+    updater = Updater("YOUR_BOT_TOKEN", use_context=True)
+    dp = updater.dispatcher
+
+    dp.add_handler(CommandHandler("start", start))
+    dp.add_handler(CallbackQueryHandler(button_handler))
+    dp.add_handler(MessageHandler(Filters.photo, add_photo))
+    dp.add_handler(CommandHandler("view", view_wardrobe))
+
+    updater.start_polling()
+    updater.idle()
+
+if __name__ == "__main__":
+    main()
